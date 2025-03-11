@@ -177,7 +177,7 @@ class SshConnector(BaseConnector):
                     pkey=key,
                     password=self._password,
                     allow_agent=False,
-                    look_for_keys=True,
+                    look_for_keys=False,
                     timeout=FIRST_RECV_TIMEOUT,
                 )
         except AuthenticationException:
