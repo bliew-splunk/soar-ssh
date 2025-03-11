@@ -157,6 +157,8 @@ class SshConnector(BaseConnector):
         self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, server)
+
+        look_for_keys =  key is not None
         try:
             if self._disable_sha2:
                 self.debug_print("Disabling SHA2 algorithms")
@@ -166,7 +168,7 @@ class SshConnector(BaseConnector):
                     pkey=key,
                     password=self._password,
                     allow_agent=False,
-                    look_for_keys=True,
+                    look_for_keys=look_for_keys,
                     timeout=FIRST_RECV_TIMEOUT,
                     disabled_algorithms=dict(pubkeys=["rsa-sha2-512", "rsa-sha2-256"]),
                 )
@@ -177,7 +179,7 @@ class SshConnector(BaseConnector):
                     pkey=key,
                     password=self._password,
                     allow_agent=False,
-                    look_for_keys=False,
+                    look_for_keys=look_for_keys,
                     timeout=FIRST_RECV_TIMEOUT,
                 )
         except AuthenticationException:
