@@ -5,7 +5,7 @@
     "description": "MODIFIED VERSION OF SPLUNKBASE APP. TEST USE ONLY. This app supports executing various endpoint-based investigative and containment actions on an SSH endpoint",
     "type": "endpoint",
     "main_module": "phssh_connector.py",
-    "app_version": "2.4.7",
+    "app_version": "2.4.14",
     "utctime_updated": "2024-11-08T16:03:22.000000Z",
     "package_name": "phantom_ssh",
     "product_vendor": "Generic",
@@ -62,6 +62,12 @@
             "data_type": "boolean",
             "order": 7,
             "description": "Disable SHA2 Algorithms (For Older SSH instances)"
+        },
+        "remote_port": {
+            "data_type": "numeric",
+            "order": 8,
+            "description": "Port number of remote SSH server",
+            "default": 22
         }
     },
     "actions": [
@@ -113,6 +119,12 @@
                     "order": 3,
                     "description": "Seconds before timeout. If an invalid value or 0 is entered, the timeout specified in the asset configuration will be used (default: 0)",
                     "default": 0
+                },
+                "dev_version": {
+                    "data_type": "boolean",
+                    "order": 4,
+                    "description": "Use development version of this action. WARNING: TEST USE ONLY",
+                    "default": false
                 }
             },
             "output": [

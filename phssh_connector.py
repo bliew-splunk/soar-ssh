@@ -108,6 +108,7 @@ class SshConnector(BaseConnector):
         self._password = config.get(SSH_JSON_PASSWORD)
         self._root = config.get(SSH_JSON_ROOT, False)
         self._rsa_key_file = config.get(SSH_JSON_RSA_KEY)
+        self._remote_port = config.get(SSH_JSON_REMOTE_PORT, 22)
 
         self._pseudo_terminal = config.get(SSH_JSON_PSEUDO_TERMINAL, False)
         self._disable_sha2 = config.get(SSH_JSON_DISABLE_SHA2, False)
@@ -128,7 +129,7 @@ class SshConnector(BaseConnector):
     def _start_connection(self, action_result, server):
 
         self.debug_print("PARAMIKO VERSION. {}".format(paramiko.__version__))
-
+        self.debug_print(f"Remote host={server}, port={self._remote_port}")
         if self._rsa_key_file is None and self._password is None:
             return action_result.set_status(phantom.APP_ERROR, SSH_PWD_OR_RSA_KEY_NOT_SPECIFIED_MSG_ERR)
 
@@ -164,6 +165,7 @@ class SshConnector(BaseConnector):
                 self.debug_print("Disabling SHA2 algorithms")
                 self._ssh_client.connect(
                     hostname=server,
+                    port=self._remote_port,
                     username=self._username,
                     pkey=key,
                     password=self._password,
@@ -175,6 +177,7 @@ class SshConnector(BaseConnector):
             else:
                 self._ssh_client.connect(
                     hostname=server,
+                    port=self._remote_port,
                     username=self._username,
                     pkey=key,
                     password=self._password,
@@ -391,18 +394,56 @@ class SshConnector(BaseConnector):
         else:
             passwd = ""
 
-        self.debug_print("Sending command for execution")
-        status_code, stdout, exit_status = self._send_command(cmd, action_result, passwd=passwd, timeout=timeout)
+        use_dev_version = param.get("dev_version", False)
+        self.save_progress(f"Sending command for execution: command={cmd}, dev_version={use_dev_version}")
+        if use_dev_version:
+            self._execute_command_dev_version(cmd, action_result)
+        else:
+            status_code, stdout, exit_status = self._send_command(cmd, action_result, passwd=passwd, timeout=timeout)
 
-        # If command failed to send
-        if phantom.is_fail(status_code):
-            action_result.add_data({"output": stdout})
-            return action_result.get_status()
+            # If command failed to send
+            if phantom.is_fail(status_code):
+                action_result.add_data({"output": stdout})
+                return action_result.get_status()
 
-        action_result = self._output_for_exit_status(action_result, exit_status, stdout, stdout)
+            action_result = self._output_for_exit_status(action_result, exit_status, stdout, stdout)
 
-        self.debug_print("'exec_command' action executed successfully")
+            self.debug_print("'exec_command' action executed successfully")
         return action_result.get_status()
+
+
+    def _channel_send_command(self, channel: paramiko.Channel, command:str, no_output_timeout=5) -> str:
+        channel.send(command.encode('ascii'))
+        time.sleep(1)
+        last_received_time = time.time()
+        all_output_bytes = b''
+        while (time.time() - last_received_time) < no_output_timeout:
+            if channel.recv_ready():
+                all_output_bytes += channel.recv(65535)
+                last_received_time = time.time()
+            time.sleep(1)
+
+        self.save_progress(f"OUTPUT: {all_output_bytes}")
+        return all_output_bytes.decode()
+
+    def _execute_command_dev_version(self, command, action_result, no_output_timeout=5):
+        self.save_progress(f"Executing 'dev_version' command: {command.__repr__()}")
+
+        # Adding back in newline character is important, as this equates to pressing 'enter' key
+        commands = [f"{x}\n" for x in command.split("\n")]
+        self.save_progress(f"Split commands into: {commands}")
+        channel = self._ssh_client.invoke_shell()
+        time.sleep(2)
+        output = channel.recv(65535).decode()
+        self.save_progress(f"STDOUT: {output}")
+
+
+        for cmd in commands:
+            self.save_progress(f"Executing command: {cmd.__repr__()}")
+            self._channel_send_command(channel=channel, command=cmd, no_output_timeout=no_output_timeout)
+
+
+        return action_result.set_status(phantom.APP_SUCCESS)
 
     def _handle_ssh_reboot_server(self, param):
 
