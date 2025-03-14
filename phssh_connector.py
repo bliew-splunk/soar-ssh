@@ -357,11 +357,12 @@ class SshConnector(BaseConnector):
             "port" : self._remote_port
         }
 
+        read_timeout = float(param.get(SSH_JSON_TIMEOUT, 120))
         command = param[SSH_JSON_CMD]
         commands = command.split('\n')
-        self.save_progress(f"Executing one or more commands: {commands}")
+        self.save_progress(f"Executing one or more commands: {commands}, read_timeout={read_timeout}")
         with ConnectHandler(**device) as net_connect:
-            output = net_connect.send_multiline_timing(commands)
+            output = net_connect.send_multiline_timing(commands, read_timeout=read_timeout)
         self.save_progress(f"OUTPUT: {output}")
 
         action_result.add_data({"output" : output})

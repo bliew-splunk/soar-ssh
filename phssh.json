@@ -5,7 +5,7 @@
     "description": "MODIFIED VERSION OF SPLUNKBASE APP. TEST USE ONLY. This app supports executing various endpoint-based investigative and containment actions on an SSH endpoint",
     "type": "endpoint",
     "main_module": "phssh_connector.py",
-    "app_version": "2.4.20",
+    "app_version": "2.4.21",
     "utctime_updated": "2024-11-08T16:03:22.000000Z",
     "package_name": "phantom_ssh",
     "product_vendor": "Generic",
@@ -251,8 +251,8 @@
                 "timeout": {
                     "data_type": "numeric",
                     "order": 3,
-                    "description": "Seconds before timeout. If an invalid value or 0 is entered, the timeout specified in the asset configuration will be used (default: 0)",
-                    "default": 0
+                    "description": "Seconds before each command times out.",
+                    "default": 60
                 }
             },
             "output": [
