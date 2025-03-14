@@ -343,6 +343,30 @@ class SshConnector(BaseConnector):
         self.save_progress(SSH_SUCCESS_CONNECTIVITY_TEST)
         return action_result.set_status(phantom.APP_SUCCESS)
 
+    def _handle_ssh_execute_cisco_command(self, param):
+        self.save_progress(f"Starting 'execute cisco program' action function with param={param}")
+        action_result = ActionResult(dict(param))
+        self.add_action_result(action_result)
+
+        from netmiko import ConnectHandler
+        device = {
+            "device_type": param["device_type"],
+            "host": param[SSH_JSON_ENDPOINT],
+            "username": self._username,
+            "password": self._password,
+            "port" : self._remote_port
+        }
+
+        command = param[SSH_JSON_CMD]
+        commands = command.split('\n')
+        self.save_progress(f"Executing one or more commands: {commands}")
+        with ConnectHandler(**device) as net_connect:
+            output = net_connect.send_multiline_timing(commands)
+        self.save_progress(f"OUTPUT: {output}")
+
+        action_result.add_data({"output" : output})
+        return action_result.set_status(phantom.APP_SUCCESS)
+
     def _handle_ssh_execute_command(self, param):
 
         self.debug_print("Starting 'execute program' action function")
@@ -394,57 +418,20 @@ class SshConnector(BaseConnector):
         else:
             passwd = ""
 
-        use_dev_version = param.get("dev_version", False)
-        self.save_progress(f"Sending command for execution: command={cmd}, dev_version={use_dev_version}")
-        if use_dev_version:
-            self._execute_command_dev_version(cmd, action_result)
-        else:
-            status_code, stdout, exit_status = self._send_command(cmd, action_result, passwd=passwd, timeout=timeout)
+        self.save_progress(f"Sending command for execution: command={cmd}")
+        status_code, stdout, exit_status = self._send_command(cmd, action_result, passwd=passwd, timeout=timeout)
 
-            # If command failed to send
-            if phantom.is_fail(status_code):
-                action_result.add_data({"output": stdout})
-                return action_result.get_status()
+        # If command failed to send
+        if phantom.is_fail(status_code):
+            action_result.add_data({"output": stdout})
+            return action_result.get_status()
 
-            action_result = self._output_for_exit_status(action_result, exit_status, stdout, stdout)
+        action_result = self._output_for_exit_status(action_result, exit_status, stdout, stdout)
 
-            self.debug_print("'exec_command' action executed successfully")
+        self.debug_print("'exec_command' action executed successfully")
         return action_result.get_status()
 
 
-    def _channel_send_command(self, channel: paramiko.Channel, command:str, no_output_timeout=5) -> str:
-        channel.send(command.encode('ascii'))
-        time.sleep(3)
-        last_received_time = time.time()
-        all_output_bytes = b''
-        while (time.time() - last_received_time) < no_output_timeout:
-            while channel.recv_ready():
-                all_output_bytes += channel.recv(65535)
-                last_received_time = time.time()
-            time.sleep(1)
-
-        self.save_progress(f"OUTPUT BYTES: {all_output_bytes}")
-        return all_output_bytes.decode()
-
-    def _execute_command_dev_version(self, command, action_result, no_output_timeout=5):
-        self.save_progress(f"Executing 'dev_version' command: {command.__repr__()}")
-
-        # Adding back in newline character is important, as this equates to pressing 'enter' key
-        commands = [f"{x}\n" for x in command.split("\n")]
-        self.save_progress(f"Split commands into: {commands}")
-        channel = self._ssh_client.invoke_shell()
-        time.sleep(2)
-        output = channel.recv(65535).decode()
-        self.save_progress(f"STDOUT: {output}")
-
-
-        for cmd in commands:
-            self.save_progress(f"Executing command: {cmd.__repr__()}")
-            output_str = self._channel_send_command(channel=channel, command=cmd, no_output_timeout=no_output_timeout)
-            self.save_progress(f"OUTPUT STR: {output_str}")
-
-
-        return action_result.set_status(phantom.APP_SUCCESS)
 
     def _handle_ssh_reboot_server(self, param):
 
@@ -1352,6 +1339,8 @@ class SshConnector(BaseConnector):
             ret_val = self._test_connectivity(param)
         elif action_id == ACTION_ID_EXEC_COMMAND:
             ret_val = self._handle_ssh_execute_command(param)
+        elif action_id == ACTION_ID_EXEC_CISCO_COMMAND:
+            ret_val = self._handle_ssh_execute_cisco_command(param)
         elif action_id == ACTION_ID_REBOOT_SERVER:
             ret_val = self._handle_ssh_reboot_server(param)
         elif action_id == ACTION_ID_SHUTDOWN_SERVER:

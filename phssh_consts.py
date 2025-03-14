@@ -17,6 +17,7 @@
 # Phantom ssh app
 # action ids
 ACTION_ID_EXEC_COMMAND = "ssh_execute_command"
+ACTION_ID_EXEC_CISCO_COMMAND = "ssh_execute_cisco_command"
 ACTION_ID_REBOOT_SERVER = "ssh_reboot_server"
 ACTION_ID_SHUTDOWN_SERVER = "ssh_shutdown_server"
 ACTION_ID_LIST_PROCESSES = "ssh_list_processes"
