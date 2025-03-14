@@ -414,16 +414,16 @@ class SshConnector(BaseConnector):
 
     def _channel_send_command(self, channel: paramiko.Channel, command:str, no_output_timeout=5) -> str:
         channel.send(command.encode('ascii'))
-        time.sleep(1)
+        time.sleep(3)
         last_received_time = time.time()
         all_output_bytes = b''
         while (time.time() - last_received_time) < no_output_timeout:
-            if channel.recv_ready():
+            while channel.recv_ready():
                 all_output_bytes += channel.recv(65535)
                 last_received_time = time.time()
             time.sleep(1)
 
-        self.save_progress(f"OUTPUT: {all_output_bytes}")
+        self.save_progress(f"OUTPUT BYTES: {all_output_bytes}")
         return all_output_bytes.decode()
 
     def _execute_command_dev_version(self, command, action_result, no_output_timeout=5):
@@ -440,7 +440,8 @@ class SshConnector(BaseConnector):
 
         for cmd in commands:
             self.save_progress(f"Executing command: {cmd.__repr__()}")
-            self._channel_send_command(channel=channel, command=cmd, no_output_timeout=no_output_timeout)
+            output_str = self._channel_send_command(channel=channel, command=cmd, no_output_timeout=no_output_timeout)
+            self.save_progress(f"OUTPUT STR: {output_str}")
 
 
         return action_result.set_status(phantom.APP_SUCCESS)
